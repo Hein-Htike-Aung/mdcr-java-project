@@ -3,6 +3,8 @@ package services;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 import config.DBConfig;
 import models.Employee;
@@ -72,5 +74,26 @@ public class EmployeeService {
         }
     }
 
+    public List<Employee> findAllEmployees() {
+
+        List<Employee> employeeList = new ArrayList<>();
+        
+        try (Statement st = this.dbConfig.getConnection().createStatement()) {
+
+            String query = "SELECT * FROM emp";
+
+            ResultSet rs = st.executeQuery(query);
+
+            while (rs.next()) {
+                Employee employee = new Employee();
+                employeeList.add(this.employeeMapper.mapToEmployee(employee, rs));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return employeeList;
+
+    }
 
 }

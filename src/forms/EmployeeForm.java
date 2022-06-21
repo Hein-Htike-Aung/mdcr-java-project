@@ -4,8 +4,10 @@ import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -33,6 +35,8 @@ public class EmployeeForm {
 	private JTextField txtSalary;
 	private JTable tblEmployee;
 	private DefaultTableModel dtm = new DefaultTableModel();
+	private List<Employee> employeeList = new ArrayList<>();
+	private List<Employee> filteredemployeeList = new ArrayList<>();
 
 	private final DBConfig dbConfig = new DBConfig();
 
@@ -59,7 +63,7 @@ public class EmployeeForm {
 		initialize();
 		this.initializeDependency();
 		this.setTableDesign();
-		this.loadAllEmployees();
+		this.loadAllEmployees(Optional.empty());
 	}
 
 	private void initializeDependency() {
@@ -74,27 +78,25 @@ public class EmployeeForm {
 		this.tblEmployee.setModel(dtm);
 	}
 
-	private void loadAllEmployees() {
+	private void loadAllEmployees(Optional<List<Employee>> optionalEmployees) {
 		this.dtm = (DefaultTableModel) this.tblEmployee.getModel();
 		this.dtm.getDataVector().removeAllElements();
 		this.dtm.fireTableDataChanged();
 
-		try (Statement st = this.dbConfig.getConnection().createStatement()) {
+		this.employeeList = this.employeeService.findAllEmployees();
 
-			String query = "SELECT * FROM emp";
+		this.filteredemployeeList = optionalEmployees
+					.orElseGet(() -> this.employeeList)
+					.stream().collect(Collectors.toList());           
 
-			ResultSet rs = st.executeQuery(query);
-
-			while (rs.next()) {
-				Object[] dataRow = { rs.getInt("emp_id"), rs.getString("name"), rs.getString("address"),
-						rs.getString("salary") };
-
-				dtm.addRow(dataRow);
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		filteredemployeeList.forEach(e -> {
+			Object[] row = new Object[7];
+			row[0] = e.getEmp_id();
+			row[1] = e.getName();
+			row[2] = e.getSalary();
+			row[3] = e.getAddress();
+			dtm.addRow(row);
+		});
 
 		this.tblEmployee.setModel(dtm);
 	}
@@ -153,7 +155,7 @@ public class EmployeeForm {
 
 					employeeService.createEmployee(employee);
 					resetFormData();
-					loadAllEmployees();
+					loadAllEmployees(Optional.empty());
 
 				} else {
 					JOptionPane.showMessageDialog(null, "Enter Required Field");
@@ -174,6 +176,14 @@ public class EmployeeForm {
 		JButton btnSearch = new JButton("Search");
 		btnSearch.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+
+				String keyword = txtSearch.getText();
+
+				loadAllEmployees(
+						Optional.of(employeeList.stream()
+						.filter(emp -> emp.getName().toLowerCase().startsWith(keyword.toLowerCase()))
+						.collect(Collectors.toList()))
+				);
 
 			}
 		});
@@ -226,7 +236,7 @@ public class EmployeeForm {
 
 					employeeService.updateEmployee(String.valueOf(employee.getEmp_id()), employee);
 					resetFormData();
-					loadAllEmployees();
+					loadAllEmployees(Optional.empty());
 					employee = null;
 
 				}
